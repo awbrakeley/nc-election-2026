@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NC 2026 Primary — Election Night Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #07090d;
+    --surface:   #0e1117;
+    --surface2:  #141922;
+    --border:    #1c2333;
+    --border2:   #273047;
+    --text:      #cfd6e8;
+    --muted:     #566080;
+    --dem:       #4c8ef0;
+    --dem-dim:   #162345;
+    --dem-win:   #7ab0f8;
+    --rep:       #e84040;
+    --rep-dim:   #3d1010;
+    --rep-win:   #f07070;
+    --gold:      #f5c842;
+    --green:     #28d97c;
+    --purple:    #a855f7;
+    --mono:      'JetBrains Mono', monospace;
+    --head:      'Barlow Condensed', sans-serif;
+    --body:      'Barlow', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--body); min-height: 100vh; }
+
+  /* ─── SCAN-LINE OVERLAY ─── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: #050709;
+    border-bottom: 2px solid var(--gold);
+    height: 54px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    position: sticky; top: 0; z-index: 100;
+    gap: 16px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .logo h1 {
+    font-family: var(--head);
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .logo h1 em { color: var(--gold); font-style: normal; }
+  .header-center {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+  }
+  .hc-pill {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 2px;
+    white-space: nowrap;
+  }
+  .hc-pill.live   { background: rgba(40,217,124,0.12); color: var(--green); border: 1px solid rgba(40,217,124,0.3); }
+  .hc-pill.demo   { background: rgba(245,200,66,0.12); color: var(--gold);  border: 1px solid rgba(245,200,66,0.3); }
+  .hc-pill.update { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .dot-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 4px; animation: blink 1.4s infinite; }
+  .dot-pulse.demo-dot { background: var(--gold); animation: none; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+  .header-right {
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .hdr-btn {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    font-family: var(--head); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 11px; border-radius: 3px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .hdr-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .hdr-btn.accent { border-color: var(--gold); color: var(--gold); }
+  .hdr-btn.accent:hover { background: var(--gold); color: #000; }
+  .hdr-icon {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); width: 30px; height: 30px;
+    cursor: pointer; border-radius: 3px; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .hdr-icon:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ─── TICKER ─── */
+  .ticker-wrap {
+    background: #050709; border-bottom: 1px solid var(--border);
+    height: 30px; overflow: hidden; display: flex; align-items: center;
+  }
+  .ticker-label {
+    background: var(--gold); color: #000;
+    font-family: var(--head); font-weight: 800; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 0 12px; height: 100%;
+    display: flex; align-items: center; white-space: nowrap; flex-shrink: 0;
+  }
+  .ticker-inner {
+    display: flex; gap: 48px; padding: 0 24px; white-space: nowrap;
+    animation: scroll-ticker 60s linear infinite;
+  }
+  .ticker-item {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ticker-item .t-race { color: var(--text); font-weight: 600; }
+  .ticker-item .t-d { color: var(--dem-win); }
+  .ticker-item .t-r { color: var(--rep-win); }
+  .ticker-item .t-sep { color: var(--border2); }
+  @keyframes scroll-ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  /* ─── MAIN ─── */
+  main { max-width: 1640px; margin: 0 auto; padding: 16px 16px 48px; }
+
+  /* ─── DATA SOURCE BANNER ─── */
+  .source-banner {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-left: 3px solid var(--green);
+    border-radius: 4px; padding: 12px 16px;
+    margin-bottom: 14px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .source-banner.demo-mode { border-left-color: var(--gold); }
+  .sb-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .sb-body { flex: 1; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+  .sb-body strong { color: var(--green); }
+  .sb-body.demo-mode strong { color: var(--gold); }
+  .sb-inputs { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .sb-input {
+    flex: 1; min-width: 220px; max-width: 420px;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+    padding: 7px 11px; border-radius: 3px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .sb-input:focus { border-color: var(--gold); }
+  .sb-btn {
+    background: transparent; border: 1px solid var(--green); color: var(--green);
+    font-family: var(--head); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 3px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .sb-btn:hover { background: var(--green); color: #000; }
+  .sb-source-links { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .sb-link {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 3px 8px; border-radius: 2px; cursor: pointer;
+    text-decoration: none; display: inline-block;
+    transition: all 0.15s;
+  }
+  .sb-link:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px; gap: 10px; flex-wrap: wrap;
+  }
+  .filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .filter-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-right: 2px; }
+  .flt-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--muted); font-family: var(--head); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 3px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .flt-btn:hover { border-color: var(--border2); color: var(--text); }
+  .flt-btn.active { background: var(--gold); border-color: var(--gold); color: #000; }
+  .controls-right { display: flex; gap: 8px; }
+
+  /* ─── SUMMARY ROW ─── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px; margin-bottom: 14px;
+  }
+  .sum-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 10px 14px; border-radius: 4px;
+  }
+  .sum-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .sum-val { font-family: var(--head); font-size: 28px; font-weight: 900; color: var(--text); line-height: 1; }
+  .sum-card.dem .sum-val { color: var(--dem-win); }
+  .sum-card.rep .sum-val { color: var(--rep-win); }
+
+  /* ─── RACE GRID ─── */
+  #race-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+  }
+
+  /* ─── RACE CARD ─── */
+  .race-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 5px; overflow: hidden; position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .race-card:hover { border-color: var(--border2); box-shadow: 0 2px 16px rgba(0,0,0,0.4); }
+  .race-card.called-D { border-left: 3px solid var(--dem); }
+  .race-card.called-R { border-left: 3px solid var(--rep); }
+  .race-card.tight    { border-left: 3px solid var(--gold); }
+  .race-card.starred-card { border-top: 2px solid var(--gold); }
+
+  .card-head {
+    padding: 9px 13px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  }
+  .card-title { flex: 1; }
+  .race-badge {
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 2px;
+  }
+  .race-name {
+    font-family: var(--head); font-size: 14px; font-weight: 800;
+    color: var(--text); line-height: 1.15; letter-spacing: 0.01em;
+  }
+  .card-actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .card-btn {
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 2px 4px;
+    border-radius: 2px; transition: color 0.12s;
+  }
+  .card-btn:hover { color: var(--text); }
+  .card-btn.on { color: var(--gold); }
+
+  /* precinct row */
+  .prec-row {
+    padding: 5px 13px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .prec-text { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .called-pill {
+    font-family: var(--head); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 2px;
+  }
+  .called-pill.D { background: var(--dem-dim); color: var(--dem-win); }
+  .called-pill.R { background: var(--rep-dim); color: var(--rep-win); }
+  .called-pill.tight { background: #2d2200; color: var(--gold); }
+
+  /* candidates */
+  .cands { padding: 9px 13px 11px; display: flex; flex-direction: column; gap: 7px; }
+  .cand-row { display: flex; flex-direction: column; gap: 3px; }
+  .cand-info { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .cand-left { display: flex; align-items: center; gap: 7px; }
+  .pdot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .pdot.D { background: var(--dem); }
+  .pdot.R { background: var(--rep); }
+  .pdot.L { background: var(--purple); }
+  .pdot.G { background: var(--green); }
+  .cand-name {
+    font-family: var(--body); font-size: 12.5px; font-weight: 600;
+    color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 155px;
+  }
+  .cand-win { color: var(--gold); font-size: 11px; margin-left: 3px; }
+  .cand-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .cand-votes { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .cand-pct { font-family: var(--head); font-size: 16px; font-weight: 800; width: 46px; text-align: right; line-height: 1; }
+  .cand-pct.D { color: var(--dem-win); }
+  .cand-pct.R { color: var(--rep-win); }
+  .cand-pct.L { color: #c084fc; }
+  .cand-pct.G { color: var(--green); }
+  .cand-pct.other { color: var(--muted); }
+  .vote-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; display: flex; }
+  .vote-bar-fill { height: 100%; transition: width 0.5s ease; }
+  .vote-bar-fill.D { background: var(--dem); }
+  .vote-bar-fill.R { background: var(--rep); }
+  .vote-bar-fill.L { background: var(--purple); }
+  .vote-bar-fill.G { background: var(--green); }
+  .vote-bar-fill.other { background: var(--muted); }
+
+  /* margin bar */
+  .margin-wrap { margin: 0 13px 10px; }
+  .margin-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--muted); margin-bottom: 3px; }
+  .margin-track { height: 4px; background: var(--border); border-radius: 2px; position: relative; overflow: hidden; }
+  .margin-fill { position: absolute; top: 0; height: 100%; border-radius: 2px; transition: all 0.5s ease; }
+
+  /* party header dividers */
+  .party-group-head {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 4px; margin-bottom: 2px;
+  }
+  .pgh-label {
+    font-family: var(--head); font-size: 11px; font-weight: 800;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted);
+    white-space: nowrap;
+  }
+  .pgh-label.dem-label { color: var(--dem); }
+  .pgh-label.rep-label { color: var(--rep); }
+  .pgh-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* empty state */
+  .empty-state {
+    grid-column: 1/-1; text-align: center;
+    padding: 60px 20px; border: 1px dashed var(--border); border-radius: 4px;
+  }
+  .empty-state .ei { font-size: 32px; margin-bottom: 10px; }
+  .empty-state h3 { font-family: var(--head); font-size: 18px; font-weight: 800; text-transform: uppercase; margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; color: var(--muted); max-width: 300px; margin: 0 auto 14px; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    z-index: 200; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: #111520; border: 1px solid var(--border2);
+    border-radius: 6px; width: 540px; max-height: 82vh;
+    overflow-y: auto; padding: 22px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  .modal h2 { font-family: var(--head); font-weight: 900; font-size: 20px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .modal .m-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .race-section h3 {
+    font-family: var(--head); font-weight: 800; font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold);
+    margin-bottom: 7px; margin-top: 16px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .race-section h3:first-child { margin-top: 0; }
+  .race-option {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px; border-radius: 3px; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .race-option:hover { background: var(--border); }
+  .race-option.sel { background: #151d35; }
+  .race-option input { accent-color: var(--gold); width: 13px; height: 13px; cursor: pointer; }
+  .race-option label { font-size: 12.5px; cursor: pointer; color: var(--text); }
+  .race-option .rc-party {
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 1px 5px; border-radius: 2px; letter-spacing: 0.05em;
+    margin-left: auto; flex-shrink: 0;
+  }
+  .rc-party.D { background: var(--dem-dim); color: var(--dem-win); }
+  .rc-party.R { background: var(--rep-dim); color: var(--rep-win); }
+  .rc-party.Both { background: #1e1e30; color: var(--muted); }
+  .modal-footer { margin-top: 18px; display: flex; gap: 8px; justify-content: flex-end; }
+  .m-cancel {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-family: var(--head); font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 7px 16px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+  }
+  .m-cancel:hover { color: var(--text); border-color: var(--border2); }
+  .m-save {
+    background: var(--gold); border: 1px solid var(--gold); color: #000;
+    font-family: var(--head); font-size: 12px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 7px 16px; border-radius: 3px; cursor: pointer;
+  }
+
+  /* ─── SETTINGS ─── */
+  .set-section { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 14px; margin-bottom: 12px; }
+  .set-section h3 { font-family: var(--head); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 10px; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .set-row:last-child { border-bottom: none; }
+  .set-lbl { font-size: 12.5px; color: var(--text); }
+  .set-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  select.set-sel {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    font-size: 11px; padding: 4px 8px; border-radius: 3px; outline: none; cursor: pointer;
+  }
+  .toggle-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    padding: 4px 10px; border-radius: 3px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-btn.on { background: rgba(40,217,124,0.15); border-color: var(--green); color: var(--green); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-left: 3px solid var(--green); color: var(--text);
+    font-size: 12.5px; padding: 9px 14px; border-radius: 4px;
+    z-index: 300; opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none;
+    max-width: 320px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 640px) {
+    header { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+    .header-center { order: 3; width: 100%; justify-content: flex-start; }
+    main { padding: 10px 10px 40px; }
+    #race-grid { grid-template-columns: 1fr; }
+    .modal { width: calc(100vw - 24px); }
+  }
+
+  body.light {
+    --bg:        #f0f2f7;
+    --surface:   #ffffff;
+    --surface2:  #e8ebf2;
+    --border:    #d0d6e8;
+    --border2:   #b0bad4;
+    --text:      #1a2038;
+    --muted:     #7080a8;
+    --dem:       #2563eb;
+    --dem-dim:   #dbeafe;
+    --dem-win:   #1d4ed8;
+    --rep:       #dc2626;
+    --rep-dim:   #fee2e2;
+    --rep-win:   #b91c1c;
+    --gold:      #c49a00;
+    --green:     #16a34a;
+    --purple:    #7c3aed;
+  }
+  body.light header { background: #ffffff; border-bottom-color: var(--gold); }
+  body.light .ticker-wrap { background: #f8f9fc; }
+  body.light .source-banner { background: #ffffff; }
+  body.light .modal { background: #ffffff; }
+  body.light .set-section { background: #f8f9fc; }
+  body.light .toast { background: #ffffff; }
+  body.light::after { display: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    
+    <h1>NC <em>2026</em> Primary Night</h1>
+  </div>
+  <div class="header-center">
+    <div id="live-status" class="hc-pill demo"><span class="dot-pulse demo-dot"></span>Demo Mode</div>
+    <div id="refresh-info" class="hc-pill update">—</div>
+  </div>
+  <div class="header-right">
+    <button class="hdr-btn accent" onclick="openWatchlist()">+ Watchlist</button>
+    <button class="hdr-btn" onclick="simulateRefresh()" title="Refresh now">↻ Refresh</button>
+    <button class="hdr-icon" onclick="openSettings()" title="Settings">⚙</button>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-label">Results</div>
+  <div style="overflow:hidden;flex:1;">
+    <div class="ticker-inner" id="ticker"></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- DATA SOURCE BANNER -->
+  <div class="source-banner demo-mode" id="source-banner">
+    <div class="sb-icon">📡</div>
+    <div class="sb-body demo-mode" id="sb-body">
+      <strong>Demo Mode Active</strong> — Showing simulated NC 2026 primary results. On election night, connect to the NCSBE live data feed or paste any compatible results URL below.
+      <div class="sb-inputs">
+        <input class="sb-input" id="data-url" type="url" placeholder="https://er.ncsbe.gov/ feed URL  — or — custom JSON results API" />
+        <input class="sb-input" style="max-width:180px;" id="api-key" type="password" placeholder="API Key (if needed)" />
+        <button class="sb-btn" onclick="connectLive()">Connect Live</button>
+      </div>
+      <div class="sb-source-links" id="source-links">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--muted);">Quick links →</span>
+        <a class="sb-link" href="https://er.ncsbe.gov/?contest=0&county_id=0&election_dt=03/03/2026&office=FED" target="_blank">NCSBE — Federal</a>
+        <a class="sb-link" href="https://er.ncsbe.gov/?contest=0&county_id=0&election_dt=03/03/2026&office=NCS" target="_blank">NCSBE — State Senate</a>
+        <a class="sb-link" href="https://er.ncsbe.gov/?contest=0&county_id=0&election_dt=03/03/2026&office=NCH" target="_blank">NCSBE — State House</a>
+        <a class="sb-link" href="https://er.ncsbe.gov/downloads.html" target="_blank">NCSBE Downloads</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTER + CONTROLS -->
+  <div class="controls">
+    <div class="filter-group">
+      <span class="filter-label">Show:</span>
+      <button class="flt-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="flt-btn" onclick="setFilter('federal',this)">US Senate</button>
+      <button class="flt-btn" onclick="setFilter('congressional',this)">US House</button>
+      <button class="flt-btn" onclick="setFilter('state-senate',this)">NC Senate</button>
+      <button class="flt-btn" onclick="setFilter('state-house',this)">NC House</button>
+      <button class="flt-btn" onclick="setFilter('starred',this)">★ Starred</button>
+    </div>
+    <div class="controls-right">
+      <select id="party-filter" class="set-sel" onchange="renderGrid()" style="font-size:11px;">
+        <option value="all">Both Parties</option>
+        <option value="D">Democratic Primary</option>
+        <option value="R">Republican Primary</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-row" id="summary-row"></div>
+
+  <!-- RACE GRID -->
+  <div id="race-grid"></div>
+
+</main>
+
+<!-- WATCHLIST MODAL -->
+<div class="modal-overlay" id="modal-wl" onclick="if(event.target===this)closeModal('modal-wl')">
+  <div class="modal">
+    <h2>Manage Watchlist</h2>
+    <p class="m-sub">Select races to track on election night. All candidates for each primary are shown on the card.</p>
+    <div id="modal-race-list"></div>
+    <div class="modal-footer">
+      <button class="m-cancel" onclick="closeModal('modal-wl')">Cancel</button>
+      <button class="m-save" onclick="saveWatchlist()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modal-settings" onclick="if(event.target===this)closeModal('modal-settings')">
+  <div class="modal">
+    <h2>Settings</h2>
+    <p class="m-sub">Configure your dashboard display and refresh settings.</p>
+    <div class="set-section">
+      <h3>Data &amp; Refresh</h3>
+      <div class="set-row">
+        <div><div class="set-lbl">Auto-refresh interval</div><div class="set-desc">How often to pull new results (live mode)</div></div>
+        <select class="set-sel" id="sel-interval" onchange="setRefreshInterval(this.value)">
+          <option value="30">30 s</option>
+          <option value="60" selected>60 s</option>
+          <option value="120">2 min</option>
+          <option value="300">5 min</option>
+        </select>
+      </div>
+      <div class="set-row">
+        <div><div class="set-lbl">Demo simulation</div><div class="set-desc">Animate incoming results for testing</div></div>
+        <button class="toggle-btn on" id="demo-toggle" onclick="toggleDemo()">ON</button>
+      </div>
+    </div>
+    <div class="set-section">
+      <h3>Display</h3>
+      
+      <div class="set-row">
+        <div><div class="set-lbl">Light mode</div><div class="set-desc">Switch to a light color theme</div></div>
+        <button class="toggle-btn" id="light-toggle" onclick="toggleLightMode()">OFF</button>
+      </div>
+      <div class="set-row">
+        <div><div class="set-lbl">Cards per row</div></div>
+        <select class="set-sel" id="sel-cols" onchange="setCols(this.value)">
+          <option value="auto" selected>Auto</option>
+          <option value="2">2 cols</option>
+          <option value="3">3 cols</option>
+          <option value="4">4 cols</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="m-save" onclick="closeModal('modal-settings')">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  RACE DATABASE — NC 2026 March Primary
+//  Includes all major contested primaries
+// ═══════════════════════════════════════════════════════
+const ALL_RACES = [
+
+  // ── US SENATE ──
+  { id: 'sen-r', type: 'federal', party: 'R',
+    name: 'U.S. Senate — Republican Primary', short: 'US Sen (R)',
+    candidates: [
+      { name: 'Michael Whatley', party: 'R', votes: 0, pct: 0, incumbent: false, note: 'Trump endorsed, former RNC chair' },
+      { name: 'Michele Morrow',  party: 'R', votes: 0, pct: 0, incumbent: false, note: '2024 Supt. nominee' },
+      { name: 'Don Brown',       party: 'R', votes: 0, pct: 0, incumbent: false },
+      { name: 'Mark Walker',     party: 'R', votes: 0, pct: 0, incumbent: false },
+      { name: 'Thomas Johnson',  party: 'R', votes: 0, pct: 0, incumbent: false },
+      { name: 'Elizabeth Temple',party: 'R', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'sen-d', type: 'federal', party: 'D',
+    name: 'U.S. Senate — Democratic Primary', short: 'US Sen (D)',
+    candidates: [
+      { name: 'Roy Cooper',      party: 'D', votes: 0, pct: 0, incumbent: false, note: 'Fmr. Governor (2017–25)' },
+      { name: 'Justin Dues',     party: 'D', votes: 0, pct: 0, incumbent: false },
+      { name: 'Daryl Farrow',    party: 'D', votes: 0, pct: 0, incumbent: false },
+      { name: 'Robert Colon',    party: 'D', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  // ── US HOUSE ──
+  { id: 'nc01-d', type: 'congressional', party: 'D',
+    name: 'U.S. House NC-01 — Democratic Primary', short: 'NC-01 (D)',
+    candidates: [
+      { name: 'Don Davis',       party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'nc04-d', type: 'congressional', party: 'D',
+    name: 'U.S. House NC-04 — Democratic Primary', short: 'NC-04 (D)',
+    candidates: [
+      { name: 'Valerie Foushee', party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+      { name: 'Nida Allam',      party: 'D', votes: 0, pct: 0, incumbent: false, note: 'Durham Co. Commissioner' },
+    ]},
+
+  { id: 'nc06-d', type: 'congressional', party: 'D',
+    name: 'U.S. House NC-06 — Democratic Primary', short: 'NC-06 (D)',
+    candidates: [
+      { name: 'Deborah Ross',    party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent NC-02 → NC-06' },
+    ]},
+
+  { id: 'nc07-d', type: 'congressional', party: 'D',
+    name: 'U.S. House NC-07 — Democratic Primary', short: 'NC-07 (D)',
+    candidates: [
+      { name: 'Marlando Pridgen',party: 'D', votes: 0, pct: 0, incumbent: false },
+      { name: 'TBD Challenger',  party: 'D', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'nc08-r', type: 'congressional', party: 'R',
+    name: 'U.S. House NC-08 — Republican Primary', short: 'NC-08 (R)',
+    candidates: [
+      { name: 'Tim Moore',       party: 'R', votes: 0, pct: 0, incumbent: false, note: 'Fmr. NC House Speaker' },
+      { name: 'Don Brown',       party: 'R', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'nc09-r', type: 'congressional', party: 'R',
+    name: 'U.S. House NC-09 — Republican Primary', short: 'NC-09 (R)',
+    candidates: [
+      { name: 'Richard Hudson',  party: 'R', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'nc10-r', type: 'congressional', party: 'R',
+    name: 'U.S. House NC-10 — Republican Primary', short: 'NC-10 (R)',
+    candidates: [
+      { name: 'Pat Harrigan',    party: 'R', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'nc11-d', type: 'congressional', party: 'D',
+    name: 'U.S. House NC-11 — Democratic Primary', short: 'NC-11 (D)',
+    candidates: [
+      { name: 'Caleb Ager',      party: 'D', votes: 0, pct: 0, incumbent: false, note: 'DCCC backed' },
+      { name: 'Challenger',      party: 'D', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'nc13-r', type: 'congressional', party: 'R',
+    name: 'U.S. House NC-13 — Republican Primary', short: 'NC-13 (R)',
+    candidates: [
+      { name: 'Jeff Clark',      party: 'R', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+      { name: 'Brad Knott',      party: 'R', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  // ── NC STATE SENATE ──
+  { id: 'ncss-10-r', type: 'state-senate', party: 'R',
+    name: 'NC Senate District 10 — Republican Primary', short: 'SD-10 (R)',
+    candidates: [
+      { name: 'Phil Berger',     party: 'R', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent Senate Leader; Trump endorsed' },
+      { name: 'Sam Page',        party: 'R', votes: 0, pct: 0, incumbent: false, note: 'Rockingham Co. Sheriff' },
+    ]},
+
+  { id: 'ncss-14-d', type: 'state-senate', party: 'D',
+    name: 'NC Senate District 14 — Democratic Primary', short: 'SD-14 (D)',
+    candidates: [
+      { name: 'Sydney Batch',    party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'ncss-17-d', type: 'state-senate', party: 'D',
+    name: 'NC Senate District 17 — Democratic Primary', short: 'SD-17 (D)',
+    candidates: [
+      { name: 'Incumbent Dem',   party: 'D', votes: 0, pct: 0, incumbent: true },
+      { name: 'Challenger',      party: 'D', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'ncss-38-d', type: 'state-senate', party: 'D',
+    name: 'NC Senate District 38 — Democratic Primary', short: 'SD-38 (D)',
+    candidates: [
+      { name: 'Julie Mayfield',  party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  // ── NC STATE HOUSE ──
+  { id: 'ncsh-028-d', type: 'state-house', party: 'D',
+    name: 'NC House District 28 — Democratic Primary', short: 'HD-28 (D)',
+    candidates: [
+      { name: 'Incumbent',       party: 'D', votes: 0, pct: 0, incumbent: true },
+      { name: 'Elizabeth Temple',party: 'D', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'ncsh-036-d', type: 'state-house', party: 'D',
+    name: 'NC House District 36 — Democratic Primary', short: 'HD-36 (D)',
+    candidates: [
+      { name: 'Marcia Morey',    party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'ncsh-062-d', type: 'state-house', party: 'D',
+    name: 'NC House District 62 — Democratic Primary', short: 'HD-62 (D)',
+    candidates: [
+      { name: 'Cynthia Ball',    party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'ncsh-098-d', type: 'state-house', party: 'D',
+    name: 'NC House District 98 — Democratic Primary', short: 'HD-98 (D)',
+    candidates: [
+      { name: 'Julie von Haefen',party: 'D', votes: 0, pct: 0, incumbent: true,  note: 'Incumbent' },
+    ]},
+
+  { id: 'ncsh-113-r', type: 'state-house', party: 'R',
+    name: 'NC House District 113 — Republican Primary', short: 'HD-113 (R)',
+    candidates: [
+      { name: 'Incumbent (R)',   party: 'R', votes: 0, pct: 0, incumbent: true },
+      { name: 'Challenger',      party: 'R', votes: 0, pct: 0, incumbent: false },
+    ]},
+
+  { id: 'ncsh-117-r', type: 'state-house', party: 'R',
+    name: 'NC House District 117 — Republican Primary', short: 'HD-117 (R)',
+    candidates: [
+      { name: 'Jennifer Balkcom',party: 'R', votes: 0, pct: 0, incumbent: false },
+      { name: 'Christopher Wilson',party:'R',votes: 0, pct: 0, incumbent: false },
+    ]},
+];
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let raceData    = {};
+let watchlist   = JSON.parse(localStorage.getItem('nc26_watchlist') || '["sen-r","sen-d","nc04-d","ncss-10-r","nc08-r"]');
+let starred     = JSON.parse(localStorage.getItem('nc26_starred')   || '[]');
+let currentFilter = 'all';
+let liveMode    = false;
+let demoRunning = true;
+let demoTimer   = null;
+let refreshTimer= null;
+let refreshCnt  = null;
+let refreshSecs = 60;
+let apiUrl      = localStorage.getItem('nc26_api') || '';
+let apiKey      = localStorage.getItem('nc26_apikey') || '';
+let pendingWL   = [];
+let totalPrecincts = 7600; // NC total precincts ~7600
+
+// ═══════════════════════════════════════════════════════
+//  INIT DEMO DATA
+// ═══════════════════════════════════════════════════════
+function initData() {
+  ALL_RACES.forEach(r => {
+    const n = r.candidates.length;
+    raceData[r.id] = {
+      precincts: 0, totalPrecincts: totalPrecincts,
+      called: null, tight: false, margin: 0,
+      candidates: r.candidates.map(c => ({ ...c }))
+    };
+  });
+}
+
+function simulateStep() {
+  ALL_RACES.forEach(r => {
+    const d = raceData[r.id];
+    const maxPct = 99;
+    if (d.precincts >= d.totalPrecincts * maxPct / 100) return;
+
+    // increment reporting
+    const step = Math.floor(Math.random() * d.totalPrecincts * 0.04) + 1;
+    d.precincts = Math.min(d.precincts + step, d.totalPrecincts);
+    const pctIn = d.precincts / d.totalPrecincts;
+
+    // simulate results based on expected outcomes
+    const n = d.candidates.length;
+    let shares = d.candidates.map((_, i) => {
+      // weighted random based on position + some incumbency boost
+      let base = (n - i) / ((n * (n + 1)) / 2);
+      base += (d.candidates[i].incumbent ? 0.08 : 0);
+      return base + (Math.random() - 0.5) * 0.05;
+    });
+    const total = shares.reduce((a,b)=>a+b,0);
+    shares = shares.map(s => Math.max(0.01, s / total));
+
+    let totalVotes = Math.floor(pctIn * 420000 / ALL_RACES.length * (0.8 + Math.random() * 0.4));
+    d.candidates.forEach((c, i) => {
+      c.pct   = parseFloat((shares[i] * 100).toFixed(1));
+      c.votes = Math.floor(shares[i] * totalVotes);
+    });
+
+    if (n >= 2) {
+      const sorted = [...d.candidates].sort((a,b) => b.pct - a.pct);
+      d.margin = parseFloat((sorted[0].pct - sorted[1].pct).toFixed(1));
+      d.tight  = d.margin < 5 && pctIn > 0.05;
+      if (pctIn > 0.5 && d.margin > 15) d.called = sorted[0].party;
+      else d.called = null;
+    }
+  });
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LIVE DATA INTEGRATION
+// ═══════════════════════════════════════════════════════
+function connectLive() {
+  const url = document.getElementById('data-url').value.trim();
+  const key = document.getElementById('api-key').value.trim();
+  if (!url) { showToast('⚠️ Enter a data source URL first'); return; }
+  apiUrl = url; apiKey = key;
+  localStorage.setItem('nc26_api', url);
+  localStorage.setItem('nc26_apikey', key);
+  liveMode = true;
+  stopDemo();
+  updateLiveStatus(true);
+  fetchLive();
+  startCountdown();
+  showToast('🔌 Connected — pulling live data…');
+}
+
+async function fetchLive() {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const res = await fetch(apiUrl, { headers });
+    const text = await res.text();
+    // Try JSON first, then TSV (NCSBE format)
+    try {
+      const json = JSON.parse(text);
+      ingestJSON(json);
+    } catch {
+      ingestTSV(text);
+    }
+    document.getElementById('refresh-info').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch (e) {
+    showToast('⚠️ Fetch failed: ' + e.message);
+  }
+}
+
+function ingestJSON(data) {
+  // AP Elections / generic JSON format
+  const races = data.races || data.results || (Array.isArray(data) ? data : null);
+  if (!races) return;
+  races.forEach(r => {
+    const id = r.id || r.raceId || r.race_id;
+    if (!raceData[id]) return;
+    const d = raceData[id];
+    d.precincts      = r.precinctsReporting || r.precincts_reporting || 0;
+    d.totalPrecincts = r.precinctsTotal     || r.total_precincts     || 7600;
+    (r.candidates || []).forEach(c => {
+      const match = d.candidates.find(x => x.name.toLowerCase().includes((c.name||'').split(' ').pop()?.toLowerCase()));
+      if (match) {
+        match.votes = c.voteCount || c.votes || 0;
+        match.pct   = c.votePercent || c.pct   || 0;
+      }
+    });
+    if (d.candidates.length >= 2) {
+      const s = [...d.candidates].sort((a,b)=>b.pct-a.pct);
+      d.margin = s[0].pct - s[1].pct;
+      d.tight  = d.margin < 5;
+      d.called = r.winnerParty || (r.called ? s[0].party : null);
+    }
+  });
+  renderAll();
+}
+
+function ingestTSV(text) {
+  // NCSBE results_pct.txt tab-delimited format
+  // Fields: county, election_date, precinct, contest_group_id, contest_type, contest_name, choice, choice_party, vote_for, election_day, early_voting, absentee, provisional, total_votes, real_precinct
+  const lines = text.trim().split('\n');
+  const header = lines[0].toLowerCase().split('\t');
+  const contestIdx = header.indexOf('contest name');
+  const choiceIdx  = header.indexOf('choice');
+  const partyIdx   = header.indexOf('choice party');
+  const totalIdx   = header.indexOf('total votes');
+  if (contestIdx < 0 || choiceIdx < 0) { showToast('⚠️ Could not parse TSV format'); return; }
+
+  // Aggregate by contest + candidate
+  const agg = {};
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split('\t');
+    const contest = cols[contestIdx];
+    const choice  = cols[choiceIdx];
+    const party   = cols[partyIdx] || '';
+    const total   = parseInt(cols[totalIdx]) || 0;
+    if (!agg[contest]) agg[contest] = {};
+    if (!agg[contest][choice]) agg[contest][choice] = { votes: 0, party };
+    agg[contest][choice].votes += total;
+  }
+
+  // Match to known races
+  Object.entries(agg).forEach(([contestName, choices]) => {
+    const race = ALL_RACES.find(r => {
+      const cn = contestName.toUpperCase();
+      const rn = r.name.toUpperCase();
+      // Try fuzzy match on key words
+      if (r.type === 'federal' && cn.includes('US SENATE') && r.party === (Object.values(choices)[0]?.party || '')) return true;
+      if (cn.includes('HOUSE') && rn.includes(cn.slice(-4))) return true;
+      return false;
+    });
+    if (!race) return;
+    const d = raceData[race.id];
+    const totalVotes = Object.values(choices).reduce((s,c)=>s+c.votes,0);
+    Object.entries(choices).forEach(([name, info]) => {
+      const match = d.candidates.find(c => c.name.toLowerCase().includes(name.split(' ').pop().toLowerCase()));
+      if (match) {
+        match.votes = info.votes;
+        match.pct   = totalVotes > 0 ? parseFloat((info.votes / totalVotes * 100).toFixed(1)) : 0;
+      }
+    });
+  });
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════
+function renderAll() {
+  renderSummary();
+  renderGrid();
+  renderTicker();
+}
+
+function renderSummary() {
+  const watched = watchlist.map(id => ({ id, r: ALL_RACES.find(r => r.id === id), d: raceData[id] })).filter(x => x.r);
+  const called = watched.filter(x => x.d.called);
+  const tight  = watched.filter(x => x.d.tight && !x.d.called);
+  const repCalled = called.filter(x => x.d.called === 'R').length;
+  const demCalled = called.filter(x => x.d.called === 'D').length;
+
+  const avgPct = watched.length > 0
+    ? (watched.reduce((s,x) => s + (x.d.precincts / x.d.totalPrecincts * 100), 0) / watched.length).toFixed(0)
+    : 0;
+
+  document.getElementById('summary-row').innerHTML = `
+    <div class="sum-card"><div class="sum-label">Watching</div><div class="sum-val">${watchlist.length}</div></div>
+    <div class="sum-card"><div class="sum-label">Called</div><div class="sum-val">${called.length}</div></div>
+    <div class="sum-card rep"><div class="sum-label">Rep Called</div><div class="sum-val">${repCalled}</div></div>
+    <div class="sum-card dem"><div class="sum-label">Dem Called</div><div class="sum-val">${demCalled}</div></div>
+    <div class="sum-card"><div class="sum-label">Too Close</div><div class="sum-val">${tight.length}</div></div>
+    <div class="sum-card"><div class="sum-label">Avg % In</div><div class="sum-val">${avgPct}%</div></div>
+  `;
+}
+
+function renderGrid() {
+  const pf = document.getElementById('party-filter').value;
+  let ids = watchlist;
+  if (currentFilter !== 'all' && currentFilter !== 'starred') {
+    ids = ids.filter(id => {
+      const r = ALL_RACES.find(r => r.id === id);
+      return r && r.type === currentFilter;
+    });
+  }
+  if (currentFilter === 'starred') ids = ids.filter(id => starred.includes(id));
+  if (pf !== 'all') ids = ids.filter(id => { const r = ALL_RACES.find(r=>r.id===id); return r && r.party === pf; });
+
+  const grid = document.getElementById('race-grid');
+  if (ids.length === 0) {
+    grid.innerHTML = `<div class="empty-state"><div class="ei">📋</div><h3>No Races</h3><p>Add races to your watchlist or adjust the filters above.</p><button class="m-save" onclick="openWatchlist()">+ Add Races</button></div>`;
+    return;
+  }
+
+  let html = '';
+  ids.forEach(id => {
+    const r = ALL_RACES.find(r => r.id === id);
+    if (!r) return;
+    html += buildCard(r, raceData[id]);
+  });
+  grid.innerHTML = html;
+}
+
+function buildCard(race, data) {
+  const isStarred = starred.includes(race.id);
+  const pctIn = data.totalPrecincts > 0 ? (data.precincts / data.totalPrecincts * 100).toFixed(1) : '0.0';
+  const typeMap = { federal: 'U.S. Senate', congressional: 'U.S. House', 'state-senate': 'NC State Senate', 'state-house': 'NC State House' };
+  const typeLabel = typeMap[race.type] || race.type;
+
+  let calledHtml = '';
+  if (data.called) {
+    calledHtml = `<span class="called-pill ${data.called}">${data.called === 'D' ? 'DEM' : 'REP'} WIN ✓</span>`;
+  } else if (data.tight && parseFloat(pctIn) > 5) {
+    calledHtml = `<span class="called-pill tight">Too Close</span>`;
+  }
+
+  const sorted = [...data.candidates].sort((a, b) => b.pct - a.pct);
+  const leader = sorted[0];
+
+  let candHtml = '';
+  data.candidates.forEach(c => {
+    const isWinner = data.called && c.party === data.called && c.pct === leader.pct;
+    const barPct = Math.min(c.pct, 100);
+    candHtml += `
+      <div class="cand-row">
+        <div class="cand-info">
+          <div class="cand-left">
+            <div class="pdot ${c.party}"></div>
+            <span class="cand-name">${c.name}${c.incumbent ? ' ★' : ''}</span>
+            ${isWinner ? '<span class="cand-win">✓</span>' : ''}
+          </div>
+          <div class="cand-right">
+            <span class="cand-votes">${c.votes > 0 ? c.votes.toLocaleString() : '—'}</span>
+            <span class="cand-pct ${c.party}">${c.votes > 0 ? c.pct.toFixed(1) + '%' : '—'}</span>
+          </div>
+        </div>
+        <div class="vote-bar"><div class="vote-bar-fill ${c.party}" style="width:${barPct}%"></div></div>
+      </div>`;
+  });
+
+  // margin bar
+  let marginHtml = '';
+  if (data.candidates.length >= 2 && data.margin > 0) {
+    const m = Math.min(data.margin, 40);
+    const leader2 = sorted[0];
+    const trailing = sorted[1];
+    const isLeft = leader2.party === 'D';
+    marginHtml = `
+      <div class="margin-wrap">
+        <div class="margin-labels">
+          <span>${leader2.name.split(' ').pop()} +${data.margin.toFixed(1)}</span>
+          <span>${trailing.name.split(' ').pop()}</span>
+        </div>
+        <div class="margin-track">
+          <div class="margin-fill" style="width:${m * 2}%;background:${leader2.party==='D'?'var(--dem)':'var(--rep)'};${isLeft?'left:50%':'right:50%'};transform:${isLeft?'none':'none'}"></div>
+        </div>
+      </div>`;
+  }
+
+  const cls = data.called ? `called-${data.called}` : (data.tight ? 'tight' : '');
+
+  return `
+  <div class="race-card ${cls}${isStarred?' starred-card':''}">
+    <div class="card-head">
+      <div class="card-title">
+        <div class="race-badge">${typeLabel} · ${race.party === 'D' ? 'Democratic' : 'Republican'} Primary</div>
+        <div class="race-name">${race.name.replace(/ — (Democratic|Republican) Primary/,'')}</div>
+      </div>
+      <div class="card-actions">
+        <button class="card-btn ${isStarred?'on':''}" onclick="toggleStar('${race.id}')" title="${isStarred?'Unstar':'Star'}">★</button>
+        <button class="card-btn" onclick="removeFromWatchlist('${race.id}')" title="Remove">✕</button>
+      </div>
+    </div>
+    <div class="prec-row">
+      <span class="prec-text">${data.precincts > 0 ? pctIn + '% reporting (' + data.precincts.toLocaleString() + ' / ' + data.totalPrecincts.toLocaleString() + ' precincts)' : 'No results yet'}</span>
+      ${calledHtml}
+    </div>
+    <div class="cands">${candHtml}</div>
+    ${marginHtml}
+  </div>`;
+}
+
+function renderTicker() {
+  const live = ALL_RACES.filter(r => raceData[r.id] && raceData[r.id].precincts > 0 && watchlist.includes(r.id));
+  if (live.length === 0) {
+    document.getElementById('ticker').innerHTML = '<div class="ticker-item"><span style="color:var(--muted)">Awaiting results — polls close 7:30 PM ET</span></div>';
+    return;
+  }
+  const items = [...live, ...live];
+  document.getElementById('ticker').innerHTML = items.map(r => {
+    const d = raceData[r.id];
+    const sorted = [...d.candidates].sort((a,b) => b.pct - a.pct);
+    const top = sorted[0];
+    const pctIn = (d.precincts / d.totalPrecincts * 100).toFixed(0);
+    const cls = top.party === 'D' ? 't-d' : 't-r';
+    return `<div class="ticker-item"><span class="t-race">${r.short}</span><span class="t-sep">|</span><span class="${cls}">${top.name.split(' ').pop()} (${top.party}) ${top.pct.toFixed(1)}%</span><span class="t-sep">|</span><span>${pctIn}% in</span></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  WATCHLIST MODAL
+// ═══════════════════════════════════════════════════════
+function openWatchlist() {
+  pendingWL = [...watchlist];
+  const types = ['federal', 'congressional', 'state-senate', 'state-house'];
+  const labels = { federal: '🇺🇸 U.S. Senate', congressional: '🏛 U.S. House', 'state-senate': '⬡ NC State Senate', 'state-house': '○ NC State House' };
+  let html = '';
+  types.forEach(t => {
+    const races = ALL_RACES.filter(r => r.type === t);
+    html += `<div class="race-section"><h3>${labels[t]}</h3>`;
+    races.forEach(r => {
+      const checked = pendingWL.includes(r.id);
+      const partyClass = r.party === 'D' ? 'D' : 'R';
+      html += `<div class="race-option ${checked?'sel':''}" onclick="toggleWLOption('${r.id}',this)">
+        <input type="checkbox" id="wl-${r.id}" ${checked?'checked':''} onclick="event.stopPropagation();toggleWLOption('${r.id}',this.closest('.race-option'))">
+        <label for="wl-${r.id}">${r.name}</label>
+        <span class="rc-party ${partyClass}">${r.party}</span>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('modal-race-list').innerHTML = html;
+  openModal('modal-wl');
+}
+
+function toggleWLOption(id, el) {
+  const cb = el.querySelector('input');
+  const i = pendingWL.indexOf(id);
+  if (i >= 0) { pendingWL.splice(i,1); el.classList.remove('sel'); if(cb)cb.checked=false; }
+  else { pendingWL.push(id); el.classList.add('sel'); if(cb)cb.checked=true; }
+}
+
+function saveWatchlist() {
+  watchlist = [...pendingWL];
+  localStorage.setItem('nc26_watchlist', JSON.stringify(watchlist));
+  closeModal('modal-wl');
+  renderAll();
+  showToast(`Watchlist updated — tracking ${watchlist.length} races`);
+}
+
+function toggleStar(id) {
+  const i = starred.indexOf(id);
+  if (i >= 0) starred.splice(i,1); else starred.push(id);
+  localStorage.setItem('nc26_starred', JSON.stringify(starred));
+  renderGrid();
+}
+
+function removeFromWatchlist(id) {
+  watchlist = watchlist.filter(w => w !== id);
+  localStorage.setItem('nc26_watchlist', JSON.stringify(watchlist));
+  renderAll();
+  showToast('Removed from watchlist');
+}
+
+// ═══════════════════════════════════════════════════════
+//  FILTER
+// ═══════════════════════════════════════════════════════
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.flt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+  renderSummary();
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODALS
+// ═══════════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openSettings() { openModal('modal-settings'); }
+
+// ═══════════════════════════════════════════════════════
+//  DEMO ANIMATION
+// ═══════════════════════════════════════════════════════
+function startDemo() { if (!demoTimer) demoTimer = setInterval(simulateStep, 4500); }
+function stopDemo()  { clearInterval(demoTimer); demoTimer = null; }
+function toggleDemo() {
+  demoRunning = !demoRunning;
+  const btn = document.getElementById('demo-toggle');
+  if (demoRunning) { startDemo(); btn.textContent='ON'; btn.classList.add('on'); }
+  else { stopDemo(); btn.textContent='OFF'; btn.classList.remove('on'); }
+}
+
+function simulateRefresh() {
+  if (liveMode) { fetchLive(); showToast('🔄 Fetching latest results…'); }
+  else { simulateStep(); showToast('↻ Simulated update'); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  REFRESH COUNTDOWN
+// ═══════════════════════════════════════════════════════
+function startCountdown() {
+  clearInterval(refreshCnt);
+  let s = refreshSecs;
+  const el = document.getElementById('refresh-info');
+  refreshCnt = setInterval(() => {
+    s--;
+    el.textContent = `Refresh in ${s}s`;
+    if (s <= 0) { s = refreshSecs; if (liveMode) fetchLive(); }
+  }, 1000);
+}
+
+function setRefreshInterval(val) {
+  refreshSecs = parseInt(val);
+  if (liveMode) startCountdown();
+}
+
+function setCols(val) {
+  const g = document.getElementById('race-grid');
+  g.style.gridTemplateColumns = val === 'auto' ? 'repeat(auto-fill, minmax(300px, 1fr))' : `repeat(${val}, 1fr)`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  LIVE STATUS
+// ═══════════════════════════════════════════════════════
+function updateLiveStatus(live) {
+  const el = document.getElementById('live-status');
+  const banner = document.getElementById('source-banner');
+  const sbBody = document.getElementById('sb-body');
+  if (live) {
+    el.className = 'hc-pill live';
+    el.innerHTML = '<span class="dot-pulse"></span>Live';
+    banner.classList.remove('demo-mode');
+    sbBody.classList.remove('demo-mode');
+    sbBody.querySelector('strong').style.color = 'var(--green)';
+    sbBody.querySelector('strong').textContent = 'Live Mode Active';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+let toastT = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  LIGHT MODE
+// ═══════════════════════════════════════════════════════
+function toggleLightMode() {
+  const isLight = document.body.classList.toggle('light');
+  const btn = document.getElementById('light-toggle');
+  btn.textContent = isLight ? 'ON' : 'OFF';
+  btn.classList.toggle('on', isLight);
+  localStorage.setItem('nc26_lightmode', isLight ? '1' : '0');
+}
+
+// restore on load
+if (localStorage.getItem('nc26_lightmode') === '1') {
+  document.body.classList.add('light');
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════
+initData();
+renderAll();
+startDemo();
+
+// Pre-fill API inputs
+if (apiUrl) document.getElementById('data-url').value = apiUrl;
+if (apiKey) document.getElementById('api-key').value = apiKey;
+if (apiUrl) { connectLive(); }
+// Sync light mode toggle button state on load
+if (localStorage.getItem('nc26_lightmode') === '1') {
+  const lb = document.getElementById('light-toggle');
+  if (lb) { lb.textContent = 'ON'; lb.classList.add('on'); }
+}
+
+</script>
+</body>
+</html>
